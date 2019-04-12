@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <functional>
+#include <vector>
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
@@ -24,6 +25,8 @@ public:
 private:
 	GLFWwindow* window;
 
+	VkInstance instance;
+
 	// Initialize OpenGL and create a window
 	void initWindow()
 	{
@@ -40,9 +43,56 @@ private:
 		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
 	}
 
+	void createInstance()
+	{
+		// Optional: application info
+		VkApplicationInfo appInfo = {};
+		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+		appInfo.pApplicationName = "Hello Triangle";
+		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+		appInfo.pEngineName = "No Engine";
+		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+		appInfo.apiVersion = VK_API_VERSION_1_0;
+
+		// Mandatory: instance create info
+		VkInstanceCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		createInfo.pApplicationInfo = &appInfo;
+
+		// get the needed extensions by GLFW
+		uint32_t glfwExtensionCount = 0;
+		const char** glfwExtensions;
+		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+		createInfo.enabledExtensionCount = glfwExtensionCount;
+		createInfo.ppEnabledExtensionNames = glfwExtensions;
+		createInfo.enabledLayerCount = 0;
+
+		// Create Vulkan instance
+		if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to create instance!");
+		}
+
+		// Get the list of supported instance extensions
+		uint32_t extensionCount = 0;
+		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+		std::vector<VkExtensionProperties> extProperties(extensionCount);
+		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extProperties.data());
+
+		std::cout << "Available extensions: " << std::endl;
+		for (int i = 0; i < extProperties.size(); i++)
+		{
+			std::cout << extProperties[i].extensionName << "\t" << extProperties[i].specVersion << std::endl;
+			std::cout << "==========================================" << std::endl;
+		}
+
+		std::cout << checkRequiredExtensionsIncluded(glfwExtensions, glfwExtensionCount, extProperties) << std::endl;
+	}
+
 	void initVulkan()
 	{
-
+		createInstance();
 	}
 
 	void mainLoop()
@@ -56,9 +106,28 @@ private:
 
 	void cleanup()
 	{
+		vkDestroyInstance(instance, nullptr);
+
 		glfwDestroyWindow(window);
 
 		glfwTerminate();
+	}
+
+	bool checkRequiredExtensionsIncluded(
+		const char**                              glfwExtensions,
+		uint32_t                                  glfwExtensionCount,
+		const std::vector<VkExtensionProperties>& extVector) const
+	{
+		bool match = true;
+		for (int i = 0; i < glfwExtensionCount; i++)
+		{
+			if (strcmp(glfwExtensions[i], extVector[i].extensionName) != 0)
+			{
+				match = false;
+				break;
+			}
+		}
+		return match;
 	}
 };
 
@@ -78,3 +147,4 @@ int main()
 
 	return EXIT_SUCCESS;
 }
+

@@ -11,6 +11,17 @@
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
+const std::vector<const char*> validationLayers =
+{
+	"VK_LAYER_LUNARG_standard_validation"
+};
+
+#ifdef _DEBUG
+const bool enableValidationLayers = true;
+#else
+const bool enableValidationLayers = false;
+#endif
+
 class HelloTriangleApplication
 {
 public:
@@ -24,7 +35,6 @@ public:
 
 private:
 	GLFWwindow* window;
-
 	VkInstance instance;
 
 	// Initialize OpenGL and create a window
@@ -45,6 +55,11 @@ private:
 
 	void createInstance()
 	{
+		if (enableValidationLayers && !checkValidationLayerSupport())
+		{
+			throw std::runtime_error("Validation Layer not supported!!");
+		}
+
 		// Optional: application info
 		VkApplicationInfo appInfo = {};
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -58,12 +73,20 @@ private:
 		VkInstanceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		createInfo.pApplicationInfo = &appInfo;
+		if (enableValidationLayers)
+		{
+			createInfo.enabledLayerCount = (uint32_t)validationLayers.size();
+			createInfo.ppEnabledLayerNames = validationLayers.data();
+		}
+		else
+		{
+			createInfo.enabledLayerCount = 0;
+		}
 
 		// get the needed extensions by GLFW
 		uint32_t glfwExtensionCount = 0;
 		const char** glfwExtensions;
 		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
 		createInfo.enabledExtensionCount = glfwExtensionCount;
 		createInfo.ppEnabledExtensionNames = glfwExtensions;
 		createInfo.enabledLayerCount = 0;
@@ -128,6 +151,36 @@ private:
 			}
 		}
 		return match;
+	}
+
+	/**
+	 * Check for all available layers supported
+	 */
+	bool checkValidationLayerSupport()
+	{
+		// Find all available layers
+		uint32_t layerCount;
+		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+		std::vector<VkLayerProperties> availableLayers(layerCount);
+		vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+		// Check if all validation layers can be found in available layers
+		for (const char* layer : validationLayers)
+		{
+			bool layerFound = false;
+
+			for (const VkLayerProperties& layerProperty : availableLayers)
+			{
+				if (strcmp(layer, layerProperty.layerName) == 0)
+				{
+					layerFound = true;
+					break;
+				}
+			}
+
+			if (!layerFound) return false;
+		}
+		return true;
 	}
 };
 
